@@ -1,0 +1,219 @@
+/**
+ * Homework:
+ * - refactor component to NoteList & NoteEditor
+ * - refactor NoteEditor state to useTimeTravel
+ */
+
+const NoteList = ({ notes, onPickNote, onDeleteNote }) => {
+  return notes.map((note, index) => (
+    <div key={index} style={{ borderBottom: "1px solid #e5e5e5" }}>
+      <p style={{ fontWeight: "bold", fontSize: "0.875rem" }}>{note.title}</p>
+      <p style={{ fontSize: "0.75rem" }}>{(note.content || "").slice(0, 40)}</p>
+      <div style={{ display: "flex", gap: "0.25rem" }}>
+        <button onClick={() => onPickNote(note)}>Edit</button>
+        <button onClick={() => onDeleteNote(note)}>Delete</button>
+      </div>
+    </div>
+  ));
+};
+
+const useTimeTravel = (data) => {
+  const [present, setPresent] = React.useState(data);
+  const [history, setHistory] = React.useState([]);
+  const [future, setFuture] = React.useState([]);
+
+  React.useEffect(() => {
+    if (data) {
+      setPresent(data);
+    }
+  }, [data]);
+
+  return {
+    present,
+    history,
+    future,
+    update: (partialData) => {
+      setPresent((latestPresent) => ({ ...latestPresent, ...partialData }));
+      setHistory((latestHistory) => [present, ...latestHistory]);
+    },
+    undo: () => {
+      const previousNote = history[0];
+      if (previousNote) {
+        setPresent(previousNote);
+        setHistory((latestHistory) => latestHistory.slice(1));
+        setFuture((latestFuture) => [present, ...latestFuture]);
+      } else {
+        // case
+      }
+    },
+    redo: () => {
+      const previousNote = history[0];
+      if (previousNote) {
+        setPresent(previousNote);
+        setHistory((latestHistory) => latestHistory.slice(1));
+        setFuture((latestFuture) => [present, ...latestFuture]);
+      }
+    },
+    reset: (initialData) => {
+      setPresent(initialData);
+      setFuture([]);
+      setHistory([]);
+    },
+  };
+};
+
+const NoteEditor = ({ note, onSave }) => {
+  const defaultNote = React.useMemo(() => ({ title: "", content: "" }), []);
+  const {
+    history,
+    present: { title, content },
+    future,
+    update,
+    undo,
+    redo,
+    reset,
+  } = useTimeTravel(note || defaultNote);
+
+  return (
+    <React.Fragment>
+      <label htmlFor="title">Title</label>
+      <div>
+        {"ffffffff" + event.target}
+        <input
+          id="title"
+          value={title}
+          onChange={(event) => {
+            update({ title: event.target.value });
+          }}
+        />
+      </div>
+      <br />
+
+      <label htmlFor="content">content</label>
+      <div>
+        <textarea
+          id="content"
+          value={content}
+          onChange={(event) => {
+            update({ content: event.target.value });
+          }}
+        />
+      </div>
+
+      <br />
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <button
+          disabled={!history.length}
+          onClick={() => {
+            undo();
+          }}
+        >
+          Undo
+        </button>
+        <button
+          disabled={!future.length}
+          onClick={() => {
+            redo();
+          }}
+        >
+          Redo
+        </button>
+        <button
+          disabled={!title}
+          style={{ width: 80 }}
+          onClick={() => {
+            reset({ title: "", content: "" });
+            onSave({ title, content });
+          }}
+        >
+          Save
+        </button>
+      </div>
+    </React.Fragment>
+  );
+};
+
+const Noted = () => {
+  const [notes, setNotes] = React.useState([]);
+  const [selectedNote, setSelectedNote] = React.useState(null);
+
+  return {
+    notes,
+    selectedNote,
+    setSelectedNote,
+    onDeleteNoted: (note) => {
+      setSelectedNote(null);
+      setNotes((latestNotes) =>
+        latestNotes.filter((item) => item.id !== note.id)
+      );
+    },
+    onSaved: (note) => {
+      if (selectedNote) {
+        setNotes((latestNotes) =>
+          latestNotes.map((item) => {
+            if (item.id === selectedNote.id) {
+              return { ...item, ...note };
+            }
+            return item;
+          })
+        );
+        setSelectedNote(null);
+      } else {
+        setNotes((latestNotes) => [
+          { id: Date.now(), ...note },
+          ...latestNotes,
+        ]);
+      }
+    },
+  };
+};
+
+function App() {
+  const {
+    notes,
+    selectedNote,
+    setSelectedNote,
+    onDeleteNoted,
+    onSaved,
+  } = Noted();
+
+  return (
+    <div
+      style={{ maxWidth: 400, margin: "auto", display: "flex", gap: "1rem" }}
+    >
+      <div
+        style={{
+          flexBasis: 120,
+          borderRight: "1px solid #e5e5e5",
+          padding: "1rem",
+        }}
+      >
+        <NoteList
+          notes={notes}
+          onPickNote={(note) => {
+            setSelectedNote(note);
+          }}
+          onDeleteNote={(note) => {
+            onDeleteNoted(note);
+          }}
+        />
+      </div>
+      <div>
+        <h1 style={{ fontSize: "1.25rem" }}>Note Editor</h1>
+        <NoteEditor
+          note={selectedNote}
+          onSave={(note) => {
+            onSaved(note);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+  document.getElementById("root")
+);
